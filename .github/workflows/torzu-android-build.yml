@@ -1,0 +1,75 @@
+name: torzu-android-build
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'select branch to build(default: dev)'
+        required: false
+        default: 'dev'
+  # schedule:
+  #   - cron: "0 0 */7 * *"
+
+jobs:
+  suyu_android_build:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: 17
+
+    - name: Download torzu source code
+      run: |
+        cd ${{ github.workspace }}
+        git clone --branch ${{ github.event.inputs.branch || 'master' }} https://github.com/litucks/torzu.git --recursive
+
+    - id: version
+      name: Get version
+      run: |
+        echo "date=$(/bin/date -u "+%Y%m%d")" >> $GITHUB_OUTPUT
+        cd ${{ github.workspace }}/torzu
+        echo "hash=$(git log -1 --pretty=format:%H)" >> $GITHUB_OUTPUT
+        echo "short_hash=$(git describe --always --long)" >> $GITHUB_OUTPUT
+        echo "version=$(git describe --tags --always)" >> $GITHUB_OUTPUT
+
+    - name: Set up cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+          ~/.cache
+        key: ${{ runner.os }}-torzu-android-${{ steps.version.outputs.hash }}
+        restore-keys: |
+            ${{ runner.os }}-torzu-android-
+
+    - name: Prepare environment
+      run: |
+        sudo apt-get install ccache glslang-dev glslang-tools
+
+    - name: Build Android
+      run: |
+        export NDK_CCACHE="$(which ccache)"
+        ccache -sv
+        cd ${{ github.workspace }}/torzu/src/android
+        chmod +x ./gradlew
+        ./gradlew "assembleMainlineRelease"
+        mv app/build/outputs/apk/mainline/release/app-mainline-release.apk ${{ github.workspace }}/torzu-android-mainline-${{ steps.version.outputs.date }}-${{ steps.version.outputs.version }}.apk
+        ccache -sv
+
+    - name: Release Suyu Android (Suyu-Android)
+      uses: softprops/action-gh-release@v2
+      with:
+        name: Suyu Android ${{ steps.version.outputs.date }}
+        tag_name: torzu-android
+        files: ${{ github.workspace }}/torzu-android-mainline-${{ steps.version.outputs.date }}-${{ steps.version.outputs.version }}.apk
+
+    - name: Release Suyu Android ${{ steps.version.outputs.date }}
+      uses: softprops/action-gh-release@v2
+      with:
+        name: ${{ steps.version.outputs.date }}
+        tag_name: ${{ steps.version.outputs.date }}
+        files: ${{ github.workspace }}/torzu-android-mainline-${{ steps.version.outputs.date }}-${{ steps.version.outputs.version }}.apk
