@@ -11,7 +11,7 @@ on:
   #   - cron: "0 0 */7 * *"
 
 jobs:
-  suyu_android_build:
+  torzu_android_build:
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -60,14 +60,14 @@ jobs:
         mv app/build/outputs/apk/mainline/release/app-mainline-release.apk ${{ github.workspace }}/torzu-android-mainline-${{ steps.version.outputs.date }}-${{ steps.version.outputs.version }}.apk
         ccache -sv
 
-    - name: Release Suyu Android (Suyu-Android)
+    - name: Release Torzu Android (Torzu-Android)
       uses: softprops/action-gh-release@v2
       with:
-        name: Suyu Android ${{ steps.version.outputs.date }}
+        name: Torzu Android ${{ steps.version.outputs.date }}
         tag_name: torzu-android
         files: ${{ github.workspace }}/torzu-android-mainline-${{ steps.version.outputs.date }}-${{ steps.version.outputs.version }}.apk
 
-    - name: Release Suyu Android ${{ steps.version.outputs.date }}
+    - name: Release Torzu Android ${{ steps.version.outputs.date }}
       uses: softprops/action-gh-release@v2
       with:
         name: ${{ steps.version.outputs.date }}
